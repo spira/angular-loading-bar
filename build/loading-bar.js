@@ -45,11 +45,6 @@ angular.module('cfp.loadingBarInterceptor', ['cfp.loadingBar'])
       var reqsCompleted = 0;
 
       /**
-       * Bar's progress (this is used to get the bar loading smooth and is a value from 0 to 1)
-       */
-      var progress = 0;
-
-      /**
        * The amount of time spent fetching before showing the loading bar
        */
       var latencyThreshold = cfpLoadingBar.latencyThreshold;
@@ -69,7 +64,6 @@ angular.module('cfp.loadingBarInterceptor', ['cfp.loadingBar'])
         cfpLoadingBar.complete();
         reqsCompleted = 0;
         reqsTotal = 0;
-        progress = 0;
       }
 
       /**
@@ -107,12 +101,11 @@ angular.module('cfp.loadingBarInterceptor', ['cfp.loadingBar'])
         var completedOverTotal = reqsCompleted / reqsTotal;
         if (completedOverTotal >= 1) {
           setComplete();
-        } else if(completedOverTotal >= progress) {
-          progress = completedOverTotal;
-          cfpLoadingBar.set(progress);
+        } else if(completedOverTotal >= cfpLoadingBar.status()) {
+          cfpLoadingBar.set(completedOverTotal);
         }
         else { // To make the bar load smoother 'progress' should never drop, instead increment the bar slightly
-          progress = progress + ((1 - progress) * completedOverTotal);
+          var progress = cfpLoadingBar.status() + ((1 - cfpLoadingBar.status()) * completedOverTotal);
           cfpLoadingBar.set(progress);
         }
       }

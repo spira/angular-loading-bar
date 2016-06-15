@@ -45,6 +45,11 @@ angular.module('cfp.loadingBarInterceptor', ['cfp.loadingBar'])
       var reqsCompleted = 0;
 
       /**
+       * Bar's progress (this is used to get the bar loading smooth and is a value from 0 to 1)
+       */
+      var progress = 0;
+
+      /**
        * The amount of time spent fetching before showing the loading bar
        */
       var latencyThreshold = cfpLoadingBar.latencyThreshold;
@@ -64,6 +69,7 @@ angular.module('cfp.loadingBarInterceptor', ['cfp.loadingBar'])
         cfpLoadingBar.complete();
         reqsCompleted = 0;
         reqsTotal = 0;
+        progress = 0;
       }
 
       /**
@@ -94,6 +100,22 @@ angular.module('cfp.loadingBarInterceptor', ['cfp.loadingBar'])
         return cached;
       }
 
+      /**
+       * Increment the progress bar smoothly
+       */
+      function incrementProgress() {
+        var completedOverTotal = reqsCompleted / reqsTotal;
+        if (completedOverTotal >= 1) {
+          setComplete();
+        } else if(completedOverTotal >= progress) {
+          progress = completedOverTotal;
+          cfpLoadingBar.set(progress);
+        }
+        else { // To make the bar load smoother 'progress' should never drop, instead increment the bar slightly
+          progress = progress + ((1 - progress) * completedOverTotal);
+          cfpLoadingBar.set(progress);
+        }
+      }
 
       return {
         'request': function(config) {
@@ -107,7 +129,7 @@ angular.module('cfp.loadingBarInterceptor', ['cfp.loadingBar'])
               }, latencyThreshold);
             }
             reqsTotal++;
-            cfpLoadingBar.set(reqsCompleted / reqsTotal);
+            incrementProgress();
           }
           return config;
         },
@@ -120,12 +142,8 @@ angular.module('cfp.loadingBarInterceptor', ['cfp.loadingBar'])
 
           if (!response.config.ignoreLoadingBar && !isCached(response.config)) {
             reqsCompleted++;
-            if (reqsCompleted >= reqsTotal) {
-              $rootScope.$broadcast('cfpLoadingBar:loaded', {url: response.config.url, result: response});
-              setComplete();
-            } else {
-              cfpLoadingBar.set(reqsCompleted / reqsTotal);
-            }
+            $rootScope.$broadcast('cfpLoadingBar:loaded', {url: response.config.url, result: response});
+            incrementProgress();
           }
           return response;
         },
@@ -138,12 +156,8 @@ angular.module('cfp.loadingBarInterceptor', ['cfp.loadingBar'])
 
           if (!rejection.config.ignoreLoadingBar && !isCached(rejection.config)) {
             reqsCompleted++;
-            if (reqsCompleted >= reqsTotal) {
-              $rootScope.$broadcast('cfpLoadingBar:loaded', {url: rejection.config.url, result: rejection});
-              setComplete();
-            } else {
-              cfpLoadingBar.set(reqsCompleted / reqsTotal);
-            }
+            $rootScope.$broadcast('cfpLoadingBar:loaded', {url: rejection.config.url, result: rejection});
+            incrementProgress();
           }
           return $q.reject(rejection);
         }
